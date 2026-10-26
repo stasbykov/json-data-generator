@@ -1,5 +1,10 @@
 # JSON Data Generator
 
+[![Java 21+](https://img.shields.io/badge/Java-21%2B-orange?logo=openjdk&logoColor=white)](https://openjdk.org/projects/jdk/21/)
+[![Maven](https://img.shields.io/badge/Build-Maven-C71A36?logo=apachemaven&logoColor=white)](https://maven.apache.org/)
+[![Jackson 2.20.1](https://img.shields.io/badge/Jackson-2.20.1-2C7FB8)](https://github.com/FasterXML/jackson-databind)
+[![SLF4J 2.0.17](https://img.shields.io/badge/SLF4J-2.0.17-4E9A06)](https://www.slf4j.org/)
+
 Generate JSON test data from a JSON Schema, then change any value to build positive or negative test cases. No DTO classes are required.
 
 Requires **Java 21+**. Version: **1.0.0**.
