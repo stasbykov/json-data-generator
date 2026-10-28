@@ -3,6 +3,7 @@
 [![Java 21+](https://img.shields.io/badge/Java-21%2B-orange?logo=openjdk&logoColor=white)](https://openjdk.org/projects/jdk/21/)
 [![Maven](https://img.shields.io/badge/Build-Maven-C71A36?logo=apachemaven&logoColor=white)](https://maven.apache.org/)
 [![Jackson 2.20.1](https://img.shields.io/badge/Jackson-2.20.1-2C7FB8)](https://github.com/FasterXML/jackson-databind)
+[![RgxGen 3.1](https://img.shields.io/badge/RgxGen-3.1-6A1B9A)](https://github.com/curious-odd-man/RgxGen)
 [![SLF4J 2.0.17](https://img.shields.io/badge/SLF4J-2.0.17-4E9A06)](https://www.slf4j.org/)
 
 Generate JSON test data from a JSON Schema, then change any value to build positive or negative test cases. No DTO classes are required.
@@ -241,7 +242,7 @@ The library supports the following subset of Draft 2020-12:
 | Fixed values | `enum`, `const` |
 | Objects | `properties`, `required`, `additionalProperties` |
 | Arrays | `items`, `minItems`, `maxItems`, `uniqueItems` |
-| Strings | `minLength`, `maxLength`, `format` |
+| Strings | `minLength`, `maxLength`, `pattern`, `format` |
 | Numbers | `minimum`, `maximum` |
 | References | Internal JSON Pointer `$ref`, `$defs`; a `$ref` must be the only keyword in its schema object |
 | Annotations | `title`, `description`, `default`, `examples` are accepted but do not choose generated values |
@@ -252,6 +253,64 @@ Numbers use BigInteger/BigDecimal, and string length is counted in Unicode code 
 Type unions prefer the first non-null type.
 
 Unsupported schema keywords cause an error. This prevents a schema rule from being silently skipped.
+
+## String patterns
+
+Use `pattern` to generate a string that matches a regular expression:
+
+```json
+{
+  "type": "string",
+  "pattern": "^[A-Z]{2}-[0-9]{4}$"
+}
+```
+
+For example, this produces a value such as `AB-1234`. Combine `pattern` with
+`minLength`, `maxLength`, `format`, `enum`, or `const`; all supplied rules must hold.
+Pattern generation uses RgxGen and the builder's random source, so the same seed
+and settings reproduce the same result.
+
+A pattern matches anywhere in the string. Use `^` at the beginning and `$` at the
+end when the whole value must match. For example, `cat` also matches `a cat here`,
+while `^cat$` matches only `cat`.
+
+Supported syntax:
+
+- Literal BMP characters, including Cyrillic letters, and escaped punctuation.
+- Character sets and ranges: `[abc]`, `[A-Z]`, `[^0-9]`.
+- `.`, `\d`, `\D`, `\w`, `\W`, `\s`, `\S`, `\n`, `\r`, `\t`.
+- Hex escapes: `\x41`, `\u0041`.
+- Groups and alternatives: `(ab|cd)`, `(?:ab|cd)`.
+- Repetitions: `?`, `*`, `+`, `{3}`, `{2,5}`, `{2,}`.
+- `^` at the start of the pattern and `$` at the end.
+
+In JSON, double each backslash: write `"pattern": "^\\d{20}$"` for 20 digits.
+Matching uses Java regex rules for this subset. `\d` means ASCII digits, `\w`
+means ASCII letters, digits and underscore, and `\s` means ASCII whitespace.
+
+Lookaround, backreferences, named groups, inline flags, word boundaries,
+Unicode property classes, nested character sets, and lazy or possessive
+quantifiers cause an error. They are not silently ignored.
+
+Generation checks candidates up to `jsondata.generation.max-attempts`. If none
+satisfy all rules, it throws `JsonDataException` with the pattern and schema
+context. Open-ended repeats use a finite per-repeat limit: the smaller of
+`maxLength`, `max(32, minLength + 32)`, and 10,000. An explicit repeat minimum
+still takes priority. Nested repetition work is also bounded. Patterns are
+limited to 4,096 characters and 32 nested groups; generated candidates are
+limited to 10,000 characters. Longer candidates are discarded and count toward
+the attempt limit. These are generation limits, not extra schema rules.
+
+When both `format` and `pattern` are present, attempts alternate between the format
+generator and the pattern generator, starting with the format. Set the attempt
+limit to at least two to allow both sources.
+
+Matching uses the Java regex engine. If matching exhausts its stack, the library
+throws `JsonDataException` with the pattern and schema path. The generation limits
+do not guarantee that every expression can be matched within the available stack.
+
+Manual `set()` values are still accepted without pattern checks. Enable
+`validateOnBuild()` to check the final JSON against the pattern as well.
 
 ## Run tests
 
