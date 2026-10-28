@@ -298,7 +298,16 @@ context. Open-ended repeats use a finite per-repeat limit: the smaller of
 `maxLength`, `max(32, minLength + 32)`, and 10,000. An explicit repeat minimum
 still takes priority. Nested repetition work is also bounded. Patterns are
 limited to 4,096 characters and 32 nested groups; generated candidates are
-limited to 10,000 characters. These are generation limits, not extra schema rules.
+limited to 10,000 characters. Longer candidates are discarded and count toward
+the attempt limit. These are generation limits, not extra schema rules.
+
+When both `format` and `pattern` are present, attempts alternate between the format
+generator and the pattern generator, starting with the format. Set the attempt
+limit to at least two to allow both sources.
+
+Matching uses the Java regex engine. If matching exhausts its stack, the library
+throws `JsonDataException` with the pattern and schema path. The generation limits
+do not guarantee that every expression can be matched within the available stack.
 
 Manual `set()` values are still accepted without pattern checks. Enable
 `validateOnBuild()` to check the final JSON against the pattern as well.

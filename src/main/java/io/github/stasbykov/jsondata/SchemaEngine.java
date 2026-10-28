@@ -116,7 +116,7 @@ final class SchemaEngine {
         if (s.equals(BooleanNode.FALSE)) fail(path, "False schema cannot generate a value");
         for (int attempt = 0; attempt < config.maxAttempts(); attempt++) {
             JsonNode value = candidate(s, mode, random, clock, path, depth, attempt);
-            if (valid(s, value)) return value;
+            if (value != null && valid(s, value)) return value;
         }
         fail(path, "No valid value within max-attempts; constraints may be contradictory"
                 + (s.has("pattern") ? "; pattern=" + s.get("pattern").asText() : ""));
@@ -175,32 +175,51 @@ final class SchemaEngine {
             }
             case "boolean" -> BooleanNode.valueOf(random.nextBoolean());
             case "null" -> NullNode.instance;
-            default -> {
-                PatternRule pattern = patterns.get(s);
-                // Alternate sources when format and pattern must both hold.
-                if (pattern != null && (!s.has("format") || attempt % 2 == 1))
-                    yield TextNode.valueOf(pattern.generate(random));
-                String format = s.path("format").asText();
-                String value = switch (format) {
-                    case "uuid" -> new UUID((random.nextLong() & 0xffffffffffff0fffL) | 0x4000L,
-                            (random.nextLong() & 0x3fffffffffffffffL) | 0x8000000000000000L).toString();
-                    case "date" -> LocalDate.now(clock).toString();
-                    case "date-time" -> clock.instant().toString();
-                    case "email" -> "user" + random.nextInt(100000) + "@example.com";
-                    case "ipv4" -> "192.0.2." + random.nextInt(256);
-                    case "uri" -> "https://example.com/" + random.nextInt(100000);
-                    default -> {
-                        int length = s.path("minLength").asInt(Math.min(8, s.path("maxLength").asInt(8)));
-                        if (length > s.path("maxLength").asInt(Integer.MAX_VALUE)) fail(path, "minLength exceeds maxLength");
-                        StringBuilder b = new StringBuilder();
-                        for (int i = 0; i < length; i++) b.append((char) ('a' + random.nextInt(26)));
-                        yield b.toString();
-                    }
-                };
-                yield TextNode.valueOf(value);
-            }
+            case "string" -> stringCandidate(s, random, clock, path, attempt);
+            default -> throw new JsonDataException("Unsupported generation type: " + type(s));
         };
     }
+
+    private JsonNode stringCandidate(JsonNode schema, Random random, Clock clock, String path, int attempt) {
+        PatternRule pattern = patterns.get(schema);
+        if (usePattern(pattern, schema.has("format"), attempt)) {
+            // null means this candidate was discarded; generate() owns the attempt budget.
+            return pattern.generate(random).map(TextNode::valueOf).orElse(null);
+        }
+        return TextNode.valueOf(formattedString(schema, random, clock, path));
+    }
+
+    private boolean usePattern(PatternRule pattern, boolean hasFormat, int attempt) {
+        if (pattern == null) {
+            return false;
+        }
+        // Preserve format-first ordering and the seeded random stream.
+        return !hasFormat || attempt % 2 == 1;
+    }
+
+    private String formattedString(JsonNode s, Random random, Clock clock, String path) {
+        String format = s.path("format").asText();
+        String value = switch (format) {
+            case "uuid" -> new UUID((random.nextLong() & 0xffffffffffff0fffL) | 0x4000L,
+                    (random.nextLong() & 0x3fffffffffffffffL) | 0x8000000000000000L).toString();
+            case "date" -> LocalDate.now(clock).toString();
+            case "date-time" -> clock.instant().toString();
+            case "email" -> "user" + random.nextInt(100000) + "@example.com";
+            case "ipv4" -> "192.0.2." + random.nextInt(256);
+            case "uri" -> "https://example.com/" + random.nextInt(100000);
+            default -> plainString(s, random, path);
+        };
+        return value;
+    }
+
+    private String plainString(JsonNode s, Random random, String path) {
+        int length = s.path("minLength").asInt(Math.min(8, s.path("maxLength").asInt(8)));
+        if (length > s.path("maxLength").asInt(Integer.MAX_VALUE)) fail(path, "minLength exceeds maxLength");
+        StringBuilder b = new StringBuilder();
+        for (int i = 0; i < length; i++) b.append((char) ('a' + random.nextInt(26)));
+        return b.toString();
+    }
+
     void removeRequired(JsonNode raw, JsonNode value, int depth) {
         if (depth > config.maxDepth()) return;
         JsonNode s = resolve(raw);
