@@ -10,15 +10,13 @@ Generate JSON test data from a JSON Schema, then change any value to build posit
 
 Requires **Java 21+**. Version: **1.0.0**.
 
-## Install
+## Add to your project
 
-From the library directory, run:
+Use Java 21 or newer and add the library as a test dependency.
 
-```sh
-mvn install
-```
+### Maven
 
-Add the dependency to your test project:
+Add this dependency inside `<dependencies>` in your `pom.xml`:
 
 ```xml
 <dependency>
@@ -28,6 +26,39 @@ Add the dependency to your test project:
     <scope>test</scope>
 </dependency>
 ```
+
+Maven uses Maven Central by default.
+
+### Gradle (Kotlin DSL)
+
+Add to `build.gradle.kts`:
+
+```kotlin
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    testImplementation("io.github.stasbykov:json-data-generator:1.0.0")
+}
+```
+
+### Gradle (Groovy DSL)
+
+Add to `build.gradle`:
+
+```groovy
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    testImplementation 'io.github.stasbykov:json-data-generator:1.0.0'
+}
+```
+
+Reload your Maven or Gradle project, then follow the quick start below.
+These examples require version `1.0.0` to be available in your configured repository.
 
 ## Quick start
 
@@ -319,3 +350,4 @@ mvn verify
 ```
 
 JUnit and Logback are used only by the library's tests. The library itself does not depend on JUnit or Spring.
+
