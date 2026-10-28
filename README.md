@@ -10,15 +10,13 @@ Generate JSON test data from a JSON Schema, then change any value to build posit
 
 Requires **Java 21+**. Version: **1.0.0**.
 
-## Install
+## Add to your project
 
-From the library directory, run:
+Use Java 21 or newer and add the library as a test dependency.
 
-```sh
-mvn install
-```
+### Maven
 
-Add the dependency to your test project:
+Add this dependency inside `<dependencies>` in your `pom.xml`:
 
 ```xml
 <dependency>
@@ -28,6 +26,39 @@ Add the dependency to your test project:
     <scope>test</scope>
 </dependency>
 ```
+
+Maven uses Maven Central by default.
+
+### Gradle (Kotlin DSL)
+
+Add to `build.gradle.kts`:
+
+```kotlin
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    testImplementation("io.github.stasbykov:json-data-generator:1.0.0")
+}
+```
+
+### Gradle (Groovy DSL)
+
+Add to `build.gradle`:
+
+```groovy
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    testImplementation 'io.github.stasbykov:json-data-generator:1.0.0'
+}
+```
+
+Reload your Maven or Gradle project, then follow the quick start below.
+These examples require version `1.0.0` to be available in your configured repository.
 
 ## Quick start
 
@@ -320,28 +351,3 @@ mvn verify
 
 JUnit and Logback are used only by the library's tests. The library itself does not depend on JUnit or Spring.
 
-## Publish a release
-
-Publishing uses Maven Central and signed artifacts. The release workflow runs
-when a non-prerelease GitHub Release is published.
-
-Create the GitHub environment `maven-central` in this repository and add:
-
-- `MAVEN_CENTRAL_USERNAME`: the Maven Central user token username.
-- `MAVEN_CENTRAL_PASSWORD`: the Maven Central user token password.
-- `MAVEN_GPG_PRIVATE_KEY`: the ASCII-armored GPG private signing key.
-- `MAVEN_GPG_PASSPHRASE`: the signing key passphrase.
-
-The Central account must have access to `io.github.stasbykov`, and the signing
-public key must be available to Maven Central. Existing account credentials and
-the signing key can be reused; GitHub secrets must be configured separately.
-
-Set the release version in `pom.xml`, merge to `main`, then publish a GitHub
-Release with a matching tag, such as `v1.0.0`. The workflow checks that the tag
-belongs to `main` and matches the POM version, runs tests, attaches sources and
-Javadoc, signs the artifacts, and publishes them. Published versions cannot be
-overwritten.
-
-Use `./mvnw clean verify` (`mvnw.cmd clean verify` on Windows) to check the build
-without publishing. Dependabot checks Maven dependencies and GitHub Actions
-weekly.
