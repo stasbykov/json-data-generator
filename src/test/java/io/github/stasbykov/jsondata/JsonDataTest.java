@@ -94,7 +94,7 @@ class JsonDataTest {
         assertThrows(JsonDataException.class,()->b.generate("/unknown").build());
     }
     @Test void contradictionsAndUnsupportedFeaturesAreErrors() throws Exception {
-        for(String s: List.of("{\"type\":\"array\",\"minItems\":3,\"maxItems\":2}","{\"type\":\"string\",\"pattern\":\"abc\"}",
+        for(String s: List.of("{\"type\":\"array\",\"minItems\":3,\"maxItems\":2}","{\"type\":\"string\",\"patternProperties\":{}}",
                 "{\"type\":\"array\",\"minItems\":3,\"uniqueItems\":true,\"items\":{\"type\":\"boolean\"}}", "{\"type\":\"integer\",\"minimum\":0.1,\"maximum\":0.9}")) {
             var b=schema(s); assertThrows(JsonDataException.class,b::build);
         }

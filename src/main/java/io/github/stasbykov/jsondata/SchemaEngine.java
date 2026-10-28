@@ -12,11 +12,12 @@ import java.util.*;
 final class SchemaEngine {
     private static final Set<String> KEYS = Set.of("$schema", "$defs", "$ref", "title", "description", "default", "examples",
             "type", "properties", "required", "additionalProperties", "items", "minItems", "maxItems", "uniqueItems",
-            "minLength", "maxLength", "minimum", "maximum", "enum", "const", "format");
+            "minLength", "maxLength", "pattern", "minimum", "maximum", "enum", "const", "format");
     private static final Set<String> TYPES = Set.of("object", "array", "string", "integer", "number", "boolean", "null");
     private static final Set<String> FORMATS = Set.of("uuid", "date", "date-time", "email", "ipv4", "uri");
     private final JsonDataConfig config;
     private final JsonNode root;
+    private final Map<JsonNode, PatternRule> patterns = new IdentityHashMap<>();
     SchemaEngine(String name, JsonDataConfig config) {
         this.config = config;
         ObjectMapper parser = new ObjectMapper().enable(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS)
@@ -56,6 +57,11 @@ final class SchemaEngine {
         for (String key : List.of("minItems", "maxItems", "minLength", "maxLength"))
             if (s.has(key) && (!s.get(key).isIntegralNumber() || !s.get(key).canConvertToInt() || s.get(key).intValue() < 0)) fail(path, "Invalid " + key);
         for (String key : List.of("minimum", "maximum")) if (s.has(key) && !s.get(key).isNumber()) fail(path, "Invalid " + key);
+        if (s.has("pattern")) {
+            if (!s.get("pattern").isTextual()) fail(path + "/pattern", "pattern must be a string");
+            patterns.put(s, new PatternRule(s.get("pattern").textValue(), path + "/pattern",
+                    s.path("minLength").asInt(0), s.path("maxLength").asInt(Integer.MAX_VALUE)));
+        }
         if (s.has("uniqueItems") && !s.get("uniqueItems").isBoolean()) fail(path, "Invalid uniqueItems");
         if (s.has("enum") && (!s.get("enum").isArray() || s.get("enum").isEmpty())) fail(path, "Invalid enum");
         if (s.has("format") && !FORMATS.contains(s.get("format").asText())) fail(path, "Unsupported format");
@@ -109,13 +115,14 @@ final class SchemaEngine {
         if (s == null || s.equals(BooleanNode.TRUE)) return NullNode.instance;
         if (s.equals(BooleanNode.FALSE)) fail(path, "False schema cannot generate a value");
         for (int attempt = 0; attempt < config.maxAttempts(); attempt++) {
-            JsonNode value = candidate(s, mode, random, clock, path, depth);
+            JsonNode value = candidate(s, mode, random, clock, path, depth, attempt);
             if (valid(s, value)) return value;
         }
-        fail(path, "No valid value within max-attempts; constraints may be contradictory");
+        fail(path, "No valid value within max-attempts; constraints may be contradictory"
+                + (s.has("pattern") ? "; pattern=" + s.get("pattern").asText() : ""));
         return null;
     }
-    private JsonNode candidate(JsonNode s, FillMode mode, Random random, Clock clock, String path, int depth) {
+    private JsonNode candidate(JsonNode s, FillMode mode, Random random, Clock clock, String path, int depth, int attempt) {
         if (s.has("const")) return s.get("const").deepCopy();
         if (s.has("enum")) return s.get("enum").get(random.nextInt(s.get("enum").size())).deepCopy();
         return switch (type(s)) {
@@ -169,6 +176,10 @@ final class SchemaEngine {
             case "boolean" -> BooleanNode.valueOf(random.nextBoolean());
             case "null" -> NullNode.instance;
             default -> {
+                PatternRule pattern = patterns.get(s);
+                // Alternate sources when format and pattern must both hold.
+                if (pattern != null && (!s.has("format") || attempt % 2 == 1))
+                    yield TextNode.valueOf(pattern.generate(random));
                 String format = s.path("format").asText();
                 String value = switch (format) {
                     case "uuid" -> new UUID((random.nextLong() & 0xffffffffffff0fffL) | 0x4000L,
@@ -228,6 +239,7 @@ final class SchemaEngine {
         if (v.isTextual()) {
             int length = v.textValue().codePointCount(0, v.textValue().length());
             if (length < s.path("minLength").asInt(0) || length > s.path("maxLength").asInt(Integer.MAX_VALUE)) return false;
+            if (s.has("pattern") && !patterns.get(s).matches(v.textValue())) return false;
             if (s.has("format") && !formatValid(s.get("format").asText(), v.textValue())) return false;
         }
         if (v.isArray()) {
