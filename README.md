@@ -319,3 +319,29 @@ mvn verify
 ```
 
 JUnit and Logback are used only by the library's tests. The library itself does not depend on JUnit or Spring.
+
+## Publish a release
+
+Publishing uses Maven Central and signed artifacts. The release workflow runs
+when a non-prerelease GitHub Release is published.
+
+Create the GitHub environment `maven-central` in this repository and add:
+
+- `MAVEN_CENTRAL_USERNAME`: the Maven Central user token username.
+- `MAVEN_CENTRAL_PASSWORD`: the Maven Central user token password.
+- `MAVEN_GPG_PRIVATE_KEY`: the ASCII-armored GPG private signing key.
+- `MAVEN_GPG_PASSPHRASE`: the signing key passphrase.
+
+The Central account must have access to `io.github.stasbykov`, and the signing
+public key must be available to Maven Central. Existing account credentials and
+the signing key can be reused; GitHub secrets must be configured separately.
+
+Set the release version in `pom.xml`, merge to `main`, then publish a GitHub
+Release with a matching tag, such as `v1.0.0`. The workflow checks that the tag
+belongs to `main` and matches the POM version, runs tests, attaches sources and
+Javadoc, signs the artifacts, and publishes them. Published versions cannot be
+overwritten.
+
+Use `./mvnw clean verify` (`mvnw.cmd clean verify` on Windows) to check the build
+without publishing. Dependabot checks Maven dependencies and GitHub Actions
+weekly.

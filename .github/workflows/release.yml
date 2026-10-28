@@ -1,0 +1,120 @@
+name: Publish to Maven Central
+
+on:
+  release:
+    types:
+      - published
+
+permissions:
+  contents: read
+
+concurrency:
+  group: maven-central-release
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish
+    if: ${{ github.event.release.prerelease == false }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment:
+      name: maven-central
+
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.release.tag_name }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Validate release tag
+        id: version
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+
+          if [[ ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Expected tag vMAJOR.MINOR.PATCH, got: $RELEASE_TAG" >&2
+            exit 1
+          fi
+
+          git fetch --no-tags origin main:refs/remotes/origin/main
+          if ! git merge-base --is-ancestor HEAD origin/main; then
+            echo "Release tag must point to a commit contained in main" >&2
+            exit 1
+          fi
+
+          printf 'value=%s\n' "${RELEASE_TAG#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Validate publishing secrets
+        shell: bash
+        env:
+          MAVEN_CENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          MAVEN_CENTRAL_PASSWORD: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+          MAVEN_GPG_PRIVATE_KEY: ${{ secrets.MAVEN_GPG_PRIVATE_KEY }}
+          MAVEN_GPG_PASSPHRASE: ${{ secrets.MAVEN_GPG_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+
+          for variable in \
+            MAVEN_CENTRAL_USERNAME \
+            MAVEN_CENTRAL_PASSWORD \
+            MAVEN_GPG_PRIVATE_KEY \
+            MAVEN_GPG_PASSPHRASE
+          do
+            if [[ -z "${!variable:-}" ]]; then
+              echo "Missing required maven-central environment secret: $variable" >&2
+              exit 1
+            fi
+          done
+
+      - name: Set up Java, Maven Central, and GPG
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+          server-id: central
+          server-username-env-var: MAVEN_CENTRAL_USERNAME
+          server-password-env-var: MAVEN_CENTRAL_PASSWORD
+          gpg-private-key: ${{ secrets.MAVEN_GPG_PRIVATE_KEY }}
+          gpg-passphrase-env-var: MAVEN_GPG_PASSPHRASE
+
+      - name: Validate Maven version
+        shell: bash
+        env:
+          RELEASE_VERSION: ${{ steps.version.outputs.value }}
+        run: |
+          set -euo pipefail
+
+          ACTUAL_VERSION="$(
+            ./mvnw \
+              --batch-mode \
+              --quiet \
+              --no-transfer-progress \
+              -DforceStdout \
+              help:evaluate \
+              -Dexpression=project.version
+          )"
+
+          if [[ "$ACTUAL_VERSION" != "$RELEASE_VERSION" ]]; then
+            echo "Expected Maven version $RELEASE_VERSION, got $ACTUAL_VERSION" >&2
+            exit 1
+          fi
+
+      - name: Publish to Maven Central
+        env:
+          RELEASE_VERSION: ${{ steps.version.outputs.value }}
+          MAVEN_CENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          MAVEN_CENTRAL_PASSWORD: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+          MAVEN_GPG_PASSPHRASE: ${{ secrets.MAVEN_GPG_PASSPHRASE }}
+        run: |
+          ./mvnw \
+            --batch-mode \
+            --no-transfer-progress \
+            -Prelease \
+            clean deploy
