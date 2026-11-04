@@ -5,7 +5,7 @@
 
     <groupId>io.github.stasbykov</groupId>
     <artifactId>json-data-generator</artifactId>
-    <version>1.0.0</version>
+    <version>1.0.1</version>
 
     <name>JSON Data Generator</name>
     <description>Reproducible JSON test data and unrestricted manual mutations</description>

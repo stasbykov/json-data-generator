@@ -4,11 +4,11 @@
 [![Maven](https://img.shields.io/badge/Build-Maven-C71A36?logo=apachemaven&logoColor=white)](https://maven.apache.org/)
 [![Jackson 2.20.1](https://img.shields.io/badge/Jackson-2.20.1-2C7FB8)](https://github.com/FasterXML/jackson-databind)
 [![RgxGen 3.1](https://img.shields.io/badge/RgxGen-3.1-6A1B9A)](https://github.com/curious-odd-man/RgxGen)
-[![SLF4J 2.0.17](https://img.shields.io/badge/SLF4J-2.0.17-4E9A06)](https://www.slf4j.org/)
+[![SLF4J 2.0.20](https://img.shields.io/badge/SLF4J-2.0.20-4E9A06)](https://www.slf4j.org/)
 
 Generate JSON test data from a JSON Schema, then change any value to build positive or negative test cases. No DTO classes are required.
 
-Requires **Java 21+**. Version: **1.0.0**.
+Requires **Java 21+**. Version: **1.0.1**.
 
 ## Add to your project
 
@@ -22,7 +22,7 @@ Add this dependency inside `<dependencies>` in your `pom.xml`:
 <dependency>
     <groupId>io.github.stasbykov</groupId>
     <artifactId>json-data-generator</artifactId>
-    <version>1.0.0</version>
+    <version>1.0.1</version>
     <scope>test</scope>
 </dependency>
 ```
@@ -39,7 +39,7 @@ repositories {
 }
 
 dependencies {
-    testImplementation("io.github.stasbykov:json-data-generator:1.0.0")
+    testImplementation("io.github.stasbykov:json-data-generator:1.0.1")
 }
 ```
 
@@ -53,12 +53,12 @@ repositories {
 }
 
 dependencies {
-    testImplementation 'io.github.stasbykov:json-data-generator:1.0.0'
+    testImplementation 'io.github.stasbykov:json-data-generator:1.0.1'
 }
 ```
 
 Reload your Maven or Gradle project, then follow the quick start below.
-These examples require version `1.0.0` to be available in your configured repository.
+These examples require version `1.0.1` to be available in your configured repository.
 
 ## Quick start
 
